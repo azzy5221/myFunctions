@@ -1,0 +1,33 @@
+def WOE_IV(df,target):
+    IV = pd.DataFrame()
+    obj_df = pd.DataFrame()
+    for col in df.drop(target, axis = 1).columns:
+        if df[col].dtype == 'float64' or df[col].dtype == 'int64':
+            df_new = pd.concat([obj_df,pd.Series(pd.qcut(df[col], 10,duplicates= 'drop'))],
+                               axis = 1)
+            obj_df = df_new
+        elif df[col].dtype == 'object':
+            df_new = pd.concat([obj_df,df[col]],axis = 1)
+            obj_df = df_new
+    obj_df[target] = df[target]
+    for col in obj_df.drop(target, axis = 1).columns:
+        tab = pd.DataFrame()
+        for i in obj_df[col].unique():
+            new_row = {
+                'Objects':i,
+                'Good': [obj_df[(obj_df[col]==i) & (obj_df[target]==0)][target].count()],
+                'Bad': [obj_df[(obj_df[col]==i) & (obj_df[target]==1)][target].count()],
+                'Good%': [(obj_df[(obj_df[col]==i) & (obj_df[target]==0)][target].count()
+                          if obj_df[(obj_df[col]==i) & (obj_df[target]==0)][target].count() != 0 else 0.5)
+                /obj_df[obj_df[target]==0].shape[0]],
+                'Bad%': [(obj_df[(obj_df[col]==i) & (obj_df[target]==1)][target].count()
+                         if obj_df[(obj_df[col]==i) & (obj_df[target]==1)][target].count() != 0 else 0.5)
+                /obj_df[obj_df[target]==1].shape[0]]
+                }
+            tab_new = pd.concat([tab,pd.DataFrame(new_row)], axis = 0)
+            tab = tab_new
+        tab['WoE'] = np.log(tab['Good%']/tab['Bad%'])
+        tab['IV'] = (np.log(tab['Good%']/tab['Bad%']))*(tab['Good%'] - tab['Bad%'])
+        IV_NEW = pd.concat([IV,pd.DataFrame({'Variable':[col],'IV':[tab['IV'].sum()]})],axis = 0)
+        IV = IV_NEW
+    return IV
